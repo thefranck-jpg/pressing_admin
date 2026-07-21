@@ -1,10 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import FastAPI, APIRouter, Depends, HTTPException
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, desc
 from typing import Optional, List
 from datetime import date, datetime
 from decimal import Decimal
 from pydantic import BaseModel
+import os
+import uvicorn
+
+# ── IMPORTS DES MODULES DU BACKEND ───────────────────────────
 from database import get_db
 from security import require_admin, get_current_user
 from models import (User, Commande, OrderItem, Collecte, DemandeDepot,
@@ -12,6 +19,50 @@ from models import (User, Commande, OrderItem, Collecte, DemandeDepot,
                     NegoConversation, NegoMessage, TarifService, Offre,
                     ConfigParrainage, Wallet, StatutHistorique, AuditLog)
 
+# ════════════════════════════════════════════════════════════════
+# 1. CRÉATION DE L'APPLICATION FASTAPI
+# ════════════════════════════════════════════════════════════════
+app = FastAPI(title="Nymphe Admin Dashboard")
+
+# ════════════════════════════════════════════════════════════════
+# 2. CORS (PERMET AU DASHBOARD DE COMMUNIQUER AVEC LE BACKEND)
+# ════════════════════════════════════════════════════════════════
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://nymphe-production.up.railway.app",
+        "http://localhost:3000",
+        "http://localhost:5000",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5000",
+        "*"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ════════════════════════════════════════════════════════════════
+# 3. SERVIR LES FICHIERS STATIQUES (HTML, CSS, JS)
+# ════════════════════════════════════════════════════════════════
+app.mount("/css", StaticFiles(directory="css"), name="css")
+app.mount("/js", StaticFiles(directory="js"), name="js")
+app.mount("/images", StaticFiles(directory="images"), name="images")
+
+# ════════════════════════════════════════════════════════════════
+# 4. ROUTES POUR L'INTERFACE HTML
+# ════════════════════════════════════════════════════════════════
+@app.get("/")
+async def index():
+    return FileResponse("index.html")
+
+@app.get("/dashboard")
+async def dashboard_page():
+    return FileResponse("dashboard.html")
+
+# ════════════════════════════════════════════════════════════════
+# 5. ROUTER ADMIN (TOUTES TES ROUTES API)
+# ════════════════════════════════════════════════════════════════
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
 # ── SCHEMAS ───────────────────────────────────────────────────
@@ -718,3 +769,15 @@ def get_audit(limit: int = 50, admin: User = Depends(require_admin), db: Session
 def _log(db: Session, admin_id: int, action: str):
     db.add(AuditLog(admin_id=admin_id, action=action))
     db.commit()
+
+# ════════════════════════════════════════════════════════════════
+# 6. INCLURE LE ROUTER DANS L'APPLICATION
+# ════════════════════════════════════════════════════════════════
+app.include_router(router)
+
+# ════════════════════════════════════════════════════════════════
+# 7. POINT D'ENTRÉE POUR RAILWAY
+# ════════════════════════════════════════════════════════════════
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8080))
+    uvicorn.run(app, host="0.0.0.0", port=port)
