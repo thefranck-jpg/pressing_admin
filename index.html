@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pressing J — Admin</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+/* ── Styles spécifiques à la page login ──────────────── */
+body.login-page {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh;
+  background: radial-gradient(ellipse at center, #0D1A4A 0%, #070C24 70%);
+}
+.login-container {
+  width: 420px; padding: 48px 40px;
+  background: #0D1235; border-radius: 24px;
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 20px 60px rgba(21,101,192,0.3);
+}
+.login-logo { text-align: center; margin-bottom: 36px; }
+
+/* ── ZONE LOGO AVEC IMAGE ── */
+.logo-img {
+  width: 80px;
+  height: 80px;
+  border-radius: 20px;
+  object-fit: cover;
+  margin-bottom: 14px;
+  box-shadow: 0 0 28px rgba(79,195,247,0.4);
+  border: 2px solid rgba(79,195,247,0.3);
+}
+
+.logo-glow {
+  width: 72px; height: 72px; border-radius: 50%; margin: 0 auto 14px;
+  background: linear-gradient(135deg, #1565C0, #4FC3F7);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 30px; box-shadow: 0 0 28px rgba(79,195,247,0.5);
+  display: none; /* caché si on utilise une image */
+}
+.login-logo h1 { 
+  font-size: 22px; font-weight: 800; letter-spacing: 3px; 
+  background: linear-gradient(135deg, #80CBC4, #4FC3F7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-family: 'Segoe UI', sans-serif; 
+}
+.login-logo p  { color: rgba(255,255,255,0.5); font-size: 13px; margin-top: 4px; }
+
+.form-group { margin-bottom: 18px; }
+.form-group label { display: block; color: rgba(255,255,255,0.6); font-size: 12px; margin-bottom: 7px; font-family: 'Segoe UI', sans-serif; }
+.form-group input {
+  width: 100%; padding: 13px 16px; border-radius: 12px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  color: white; font-size: 14px; outline: none; transition: border 0.2s;
+  box-sizing: border-box; font-family: 'Segoe UI', sans-serif;
+}
+.form-group input:focus { border-color: #4FC3F7; }
+
+.btn-login {
+  width: 100%; padding: 14px; border-radius: 14px; border: none; cursor: pointer;
+  background: linear-gradient(90deg, #1565C0, #4FC3F7);
+  color: white; font-size: 15px; font-weight: 700; letter-spacing: 0.5px;
+  transition: opacity 0.2s; box-shadow: 0 8px 20px rgba(79,195,247,0.35);
+  font-family: 'Segoe UI', sans-serif; margin-top: 4px;
+}
+.btn-login:hover { opacity: 0.9; }
+.btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.error-msg {
+  background: rgba(239,154,154,0.12); border: 1px solid rgba(239,154,154,0.4);
+  color: #EF9A9A; padding: 10px 14px; border-radius: 10px;
+  font-size: 13px; margin-bottom: 16px; display: none;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+/* Panneau config IP */
+.config-panel {
+  margin-top: 20px; padding: 14px 16px;
+  background: rgba(79,195,247,0.06); border: 1px solid rgba(79,195,247,0.2);
+  border-radius: 12px;
+}
+.config-panel summary {
+  font-size: 12px; color: rgba(255,255,255,0.5); cursor: pointer;
+  font-family: 'Segoe UI', sans-serif; outline: none;
+}
+.config-panel input {
+  width: 100%; padding: 9px 12px; border-radius: 8px; margin-top: 10px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(79,195,247,0.3);
+  color: white; font-size: 12px; outline: none; box-sizing: border-box;
+  font-family: 'Courier New', monospace;
+}
+.config-save {
+  width: 100%; margin-top: 8px; padding: 8px; border-radius: 8px;
+  background: rgba(79,195,247,0.15); border: 1px solid rgba(79,195,247,0.4);
+  color: #4FC3F7; font-size: 12px; cursor: pointer; font-weight: 600;
+}
+</style>
+</head>
+<body class="login-page">
+
+<div class="login-container">
+  <div class="login-logo">
+    <!-- ZONE LOGO - Remplacez "images/logo.png" par le chemin de votre logo -->
+    <img src="image/image.png" alt="Logo Pressing J" class="logo-img" onerror="this.style.display='none'; document.querySelector('.logo-fallback').style.display='flex'">
+    
+    <!-- Fallback icône si l'image ne charge pas -->
+    <div class="logo-fallback" style="display:none; width:72px; height:72px; border-radius:50%; margin:0 auto 14px; background:linear-gradient(135deg, #1565C0, #4FC3F7); display:flex; align-items:center; justify-content:center; font-size:30px; box-shadow:0 0 28px rgba(79,195,247,0.5)">
+      🧺
+    </div>
+    
+    <h1>Pressing J</h1>
+    <p>Espace Administrateur</p>
+  </div>
+
+  <div id="loginError" class="error-msg"></div>
+
+  <form id="loginForm">
+    <div class="form-group">
+      <label>📧 Email administrateur</label>
+      <input type="email" id="loginEmail" placeholder="admin@pressingj.com" required autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label>🔒 Mot de passe</label>
+      <input type="password" id="loginPassword" placeholder="••••••••••••" required autocomplete="current-password">
+    </div>
+
+    <button type="submit" class="btn-login" id="loginBtn">
+      Se connecter au dashboard
+    </button>
+  </form>
+
+  <!-- Config IP — pour changer l'adresse du backend -->
+  <details class="config-panel">
+    <summary>⚙️ Configurer l'adresse du serveur</summary>
+    <div>
+      <input type="text" id="apiUrlInput" placeholder="http://192.168.1.178:9000">
+      <button class="config-save" onclick="saveApiUrl()">💾 Enregistrer</button>
+      <div id="current-url" style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:6px;font-family:monospace;"></div>
+    </div>
+  </details>
+</div>
+
+<script>
+// ─── Config URL ───────────────────────────────────────────
+const DEFAULT_URL = `http://${window.location.hostname}:9000`;
+
+function getCurrentUrl() {
+  return localStorage.getItem("api_url") || DEFAULT_URL;
+}
+
+function saveApiUrl() {
+  const val = document.getElementById("apiUrlInput").value.trim();
+  if (!val) return;
+  const url = val.endsWith("/") ? val.slice(0,-1) : val;
+  localStorage.setItem("api_url", url);
+  document.getElementById("current-url").textContent = "✅ Serveur : " + url;
+  alert("URL sauvegardée : " + url + "\nReconnectez-vous.");
+}
+
+// Afficher l'URL actuelle
+window.addEventListener("load", () => {
+  const cur = getCurrentUrl();
+  document.getElementById("apiUrlInput").value   = cur;
+  document.getElementById("current-url").textContent = "Serveur actuel : " + cur;
+});
+
+// ─── Login ────────────────────────────────────────────────
+document.getElementById("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const btn   = document.getElementById("loginBtn");
+  const err   = document.getElementById("loginError");
+  const email = document.getElementById("loginEmail").value.trim();
+  const pass  = document.getElementById("loginPassword").value;
+  const apiUrl= getCurrentUrl();
+
+  btn.disabled = true;
+  btn.textContent = "Connexion en cours...";
+  err.style.display = "none";
+
+  try {
+    // ── 1. Essayer /admin-auth/login (endpoint dédié admin) ──
+    let res = await fetch(`${apiUrl}/admin-auth/login`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ email, password: pass }),
+    });
+
+    // ── 2. Si 404, fallback sur /auth/login (ancien endpoint) ──
+    if (res.status === 404) {
+      res = await fetch(`${apiUrl}/auth/login`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ email, password: pass }),
+      });
+    }
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Identifiants incorrects");
+
+    // Vérifier que c'est bien un admin
+    const user = data.user || data.admin || {};
+    if (!["admin","super_admin"].includes(user.role)) {
+      throw new Error("Ce compte n'a pas les droits administrateur.");
+    }
+
+    localStorage.setItem("admin_token", data.access_token);
+    localStorage.setItem("admin_user",  JSON.stringify(user));
+    window.location.href = "dashboard.html";
+
+  } catch (ex) {
+    err.textContent = ex.message.includes("Failed to fetch") || ex.message.includes("NetworkError")
+      ? `❌ Impossible de joindre le serveur.\n➜ Vérifiez que le backend tourne sur ${apiUrl}\n➜ Configurez l'IP ci-dessous si nécessaire`
+      : `❌ ${ex.message}`;
+    err.style.whiteSpace = "pre-line";
+    err.style.display = "block";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Se connecter au dashboard";
+  }
+});
+</script>
+</body>
+</html>
