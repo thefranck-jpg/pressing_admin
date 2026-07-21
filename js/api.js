@@ -2,10 +2,19 @@
 const GOOGLE_MAPS_API_KEY = "AIzaSyBplJ3lx8udSW940DPr-DLyNmBCDewaqRk";
 
 // ── BASE URL ──────────────────────────────────────────────
+
 function getApiUrl() {
-  return (localStorage.getItem("api_url") ||
-    `http://${window.location.hostname}:9000`)
-    .replace(/\/$/, "");
+  //  Utiliser l'URL de production ou localStorage
+  const stored = localStorage.getItem("api_url");
+  if (stored) return stored.replace(/\/$/, "");
+  
+  // En production, utiliser Railway
+  if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+    return "https://nymphe-production.up.railway.app";
+  }
+  
+  // En développement local
+  return `http://${window.location.hostname}:9000`;
 }
 
 const API_URL = getApiUrl();
