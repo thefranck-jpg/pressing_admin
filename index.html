@@ -131,12 +131,13 @@ body.login-page {
     </button>
   </form>
 
-  <!-- Config IP — pour changer l'adresse du backend -->
+  <!-- Config IP — pour changer l'adresse du backend (utile en dev local uniquement) -->
   <details class="config-panel">
     <summary>⚙️ Configurer l'adresse du serveur</summary>
     <div>
-      <input type="text" id="apiUrlInput" placeholder="http://192.168.1.178:9000">
+      <input type="text" id="apiUrlInput" placeholder="https://pressingadmin-production.up.railway.app">
       <button class="config-save" onclick="saveApiUrl()">💾 Enregistrer</button>
+      <button class="config-save" style="margin-top:6px;background:rgba(128,203,196,0.15);border-color:rgba(128,203,196,0.4);color:#80CBC4" onclick="resetApiUrl()">↺ Revenir à la production</button>
       <div id="current-url" style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:6px;font-family:monospace;"></div>
     </div>
   </details>
@@ -144,7 +145,19 @@ body.login-page {
 
 <script>
 // ─── Config URL ───────────────────────────────────────────
-const DEFAULT_URL = `http://${window.location.hostname}:9000`;
+// En production (Railway), on utilise toujours l'URL publique en HTTPS,
+// sans port — Railway route automatiquement vers le bon port interne.
+// En local (localhost/127.0.0.1), on pointe vers le backend de dev sur :9000.
+function getDefaultUrl() {
+  const host = window.location.hostname;
+  if (host === "localhost" || host === "127.0.0.1") {
+    return `http://${host}:9000`;
+  }
+  // Production : même origine que la page, en HTTPS, sans port.
+  return `${window.location.protocol}//${window.location.host}`;
+}
+
+const DEFAULT_URL = getDefaultUrl();
 
 function getCurrentUrl() {
   return localStorage.getItem("api_url") || DEFAULT_URL;
@@ -157,6 +170,14 @@ function saveApiUrl() {
   localStorage.setItem("api_url", url);
   document.getElementById("current-url").textContent = "✅ Serveur : " + url;
   alert("URL sauvegardée : " + url + "\nReconnectez-vous.");
+}
+
+function resetApiUrl() {
+  localStorage.removeItem("api_url");
+  const cur = getCurrentUrl();
+  document.getElementById("apiUrlInput").value = cur;
+  document.getElementById("current-url").textContent = "Serveur actuel : " + cur;
+  alert("URL réinitialisée sur la production : " + cur);
 }
 
 // Afficher l'URL actuelle
@@ -180,14 +201,15 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
   err.style.display = "none";
 
   try {
-    // ── 1. Essayer /admin-auth/login (endpoint dédié admin) ──
-    let res = await fetch(`${apiUrl}/admin-auth/login`, {
+    // Le backend expose la route de connexion admin sur /admin/login
+    // (voir admin_backend.py : router = APIRouter(prefix="/admin") + @router.post("/login"))
+    let res = await fetch(`${apiUrl}/admin/login`, {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({ email, password: pass }),
     });
 
-    // ── 2. Si 404, fallback sur /auth/login (ancien endpoint) ──
+    // Fallback pour compatibilité avec un éventuel ancien endpoint
     if (res.status === 404) {
       res = await fetch(`${apiUrl}/auth/login`, {
         method: "POST",
@@ -199,13 +221,16 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "Identifiants incorrects");
 
-    // Vérifier que c'est bien un admin
-    const user = data.user || data.admin || {};
+    // Le backend renvoie { token, user } — on garde aussi data.access_token
+    // et data.admin en compatibilité si jamais le format change un jour.
+    const token = data.token || data.access_token;
+    const user  = data.user || data.admin || {};
+
     if (!["admin","super_admin"].includes(user.role)) {
       throw new Error("Ce compte n'a pas les droits administrateur.");
     }
 
-    localStorage.setItem("admin_token", data.access_token);
+    localStorage.setItem("admin_token", token);
     localStorage.setItem("admin_user",  JSON.stringify(user));
     window.location.href = "dashboard.html";
 
