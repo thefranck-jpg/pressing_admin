@@ -10,43 +10,10 @@ from decimal import Decimal
 from pydantic import BaseModel
 import os
 import uvicorn
-# ─────────────────────────────────────────────────────────────
-# 0. AUTHENTIFICATION ADMIN
-# ─────────────────────────────────────────────────────────────
-class LoginRequest(BaseModel):
-    email: str
-    password: str
 
-@router.post("/login")
-def admin_login(payload: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email).first()
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
-    
-    if user.role not in ["admin", "super_admin"]:
-        raise HTTPException(status_code=403, detail="Accès réservé aux administrateurs")
-    
-    # Importe verify_password depuis security
-    from security import verify_password
-    if not verify_password(payload.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
-    
-    from security import create_admin_token
-    token = create_admin_token(user.id)
-    
-    return {
-        "token": token,
-        "user": {
-            "id": user.id,
-            "name": user.name,
-            "email": user.email,
-            "role": user.role
-        }
-    }
 # ── IMPORTS DES MODULES DU BACKEND ───────────────────────────
 from database import get_db
-from security import require_admin, get_current_user
+from security import require_admin, get_current_user, verify_password, create_admin_token
 from models import (User, Commande, OrderItem, Collecte, DemandeDepot,
                     Facture, TransactionWallet, Referral, Notification,
                     NegoConversation, NegoMessage, TarifService, Offre,
@@ -126,6 +93,38 @@ class CollecteStatutBody(BaseModel):
 class OffreAdminCreate(BaseModel):
     montant_offre: float
     content: Optional[str] = "Voici une proposition de réduction."
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+# ─────────────────────────────────────────────────────────────
+# 0. AUTHENTIFICATION ADMIN
+# ─────────────────────────────────────────────────────────────
+@router.post("/login")
+def admin_login(payload: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == payload.email).first()
+
+    if not user:
+        raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
+
+    if user.role not in ["admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Accès réservé aux administrateurs")
+
+    if not verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
+
+    token = create_admin_token(user.id)
+
+    return {
+        "token": token,
+        "user": {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "role": user.role
+        }
+    }
 
 # ─────────────────────────────────────────────────────────────
 # 1. DASHBOARD STATS
@@ -814,37 +813,3 @@ app.include_router(router)
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     uvicorn.run(app, host="0.0.0.0", port=port)
-    # ─────────────────────────────────────────────────────────────
-# 0. AUTHENTIFICATION ADMIN
-# ─────────────────────────────────────────────────────────────
-class LoginRequest(BaseModel):
-    email: str
-    password: str
-
-@router.post("/login")
-def admin_login(payload: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email).first()
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
-    
-    if user.role not in ["admin", "super_admin"]:
-        raise HTTPException(status_code=403, detail="Accès réservé aux administrateurs")
-    
-    # Importe verify_password depuis security
-    from security import verify_password
-    if not verify_password(payload.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
-    
-    from security import create_admin_token
-    token = create_admin_token(user.id)
-    
-    return {
-        "token": token,
-        "user": {
-            "id": user.id,
-            "name": user.name,
-            "email": user.email,
-            "role": user.role
-        }
-    }
