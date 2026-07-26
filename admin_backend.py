@@ -18,6 +18,15 @@ from models import (User, Commande, OrderItem, Collecte, DemandeDepot,
                     Facture, TransactionWallet, Referral, Notification,
                     NegoConversation, NegoMessage, TarifService, Offre,
                     ConfigParrainage, Wallet, StatutHistorique, AuditLog)
+# ════════════════════════════════════════════════════════════════
+# 🔥 TEST DE DÉMARRAGE - Ce message doit apparaître dans les logs
+# ════════════════════════════════════════════════════════════════
+print("=" * 60)
+print("🔥 ADMIN_BACKEND.PY EST CHARGÉ !")
+print("=" * 60)
+print(f"📁 Fichier: {__file__}")
+print(f"📅 Heure: {datetime.now()}")
+print("=" * 60)
 #
 # ════════════════════════════════════════════════════════════════
 # 1. CRÉATION DE L'APPLICATION FASTAPI
