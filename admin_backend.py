@@ -18,7 +18,7 @@ from models import (User, Commande, OrderItem, Collecte, DemandeDepot,
                     Facture, TransactionWallet, Referral, Notification,
                     NegoConversation, NegoMessage, TarifService, Offre,
                     ConfigParrainage, Wallet, StatutHistorique, AuditLog)
-
+#
 # ════════════════════════════════════════════════════════════════
 # 1. CRÉATION DE L'APPLICATION FASTAPI
 # ════════════════════════════════════════════════════════════════
@@ -99,21 +99,36 @@ class LoginRequest(BaseModel):
     password: str
 
 # ─────────────────────────────────────────────────────────────
-# 0. AUTHENTIFICATION ADMIN
+# 0. AUTHENTIFICATION ADMIN 
 # ─────────────────────────────────────────────────────────────
 @router.post("/login")
 def admin_login(payload: LoginRequest, db: Session = Depends(get_db)):
+    print("========== 🔐 TENTATIVE DE CONNEXION ==========")
+    print(f"📧 Email reçu: {payload.email}")
+    print(f"🔑 Mot de passe reçu: {payload.password}")
+    
     user = db.query(User).filter(User.email == payload.email).first()
 
     if not user:
+        print("❌ Utilisateur NON trouvé")
         raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
+    
+    print(f"✅ Utilisateur trouvé: {user.email}")
+    print(f"👤 Rôle: {user.role}")
+    print(f"🔐 Hash stocké: {user.password_hash}")
 
     if user.role not in ["admin", "super_admin"]:
+        print(f"❌ Rôle non autorisé: {user.role}")
         raise HTTPException(status_code=403, detail="Accès réservé aux administrateurs")
 
-    if not verify_password(payload.password, user.password_hash):
+    is_valid = verify_password(payload.password, user.password_hash)
+    print(f"📊 Résultat vérification: {is_valid}")
+    
+    if not is_valid:
+        print("❌ Mot de passe incorrect !")
         raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
 
+    print("✅ Connexion réussie !")
     token = create_admin_token(user.id)
 
     return {
