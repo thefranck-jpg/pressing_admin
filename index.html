@@ -149,14 +149,10 @@ body.login-page {
 // sans port — Railway route automatiquement vers le bon port interne.
 // En local (localhost/127.0.0.1), on pointe vers le backend de dev sur :9000.
 function getDefaultUrl() {
-  const host = window.location.hostname;
-  if (host === "localhost" || host === "127.0.0.1") {
-    return `http://${host}:9000`;
-  }
-  // Production : même origine que la page, en HTTPS, sans port.
-  return `${window.location.protocol}//${window.location.host}`;
+  // Production : toujours HTTPS
+  return 'https://pressingadmin-production.up.railway.app';
 }
-
+  
 const DEFAULT_URL = getDefaultUrl();
 
 function getCurrentUrl() {
