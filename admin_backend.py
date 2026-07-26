@@ -32,7 +32,24 @@ print("=" * 60)
 # 1. CRÉATION DE L'APPLICATION FASTAPI
 # ════════════════════════════════════════════════════════════════
 app = FastAPI(title="Nymphe Admin Dashboard")
+# ════════════════════════════════════════════════════════════════
+# ROUTE DE SANTÉ POUR RAILWAY
+# ════════════════════════════════════════════════════════════════
+@app.get("/health")
+def health_check():
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "version": "1.0.0"
+    }
 
+@app.get("/health/db")
+def health_db(db: Session = Depends(get_db)):
+    try:
+        count = db.query(User).count()
+        return {"status": "ok", "users_count": count}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
 # ════════════════════════════════════════════════════════════════
 # 2. CORS (PERMET AU DASHBOARD DE COMMUNIQUER AVEC LE BACKEND)
 # ════════════════════════════════════════════════════════════════
