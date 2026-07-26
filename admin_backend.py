@@ -835,7 +835,314 @@ def parrainage_stats(admin: User = Depends(require_admin), db: Session = Depends
 def get_audit(limit: int = 50, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
     logs = db.query(AuditLog).order_by(desc(AuditLog.created_at)).limit(limit).all()
     return [{"id": l.id, "admin_id": l.admin_id, "action": l.action, "created_at": str(l.created_at)} for l in logs]
+# ─────────────────────────────────────────────────────────────
+# 12. GESTION DES SERVICES
+# ─────────────────────────────────────────────────────────────
+@router.get("/services/")
+def get_services(admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    services = db.query(Service).all()
+    return [{
+        "id": s.id,
+        "name": s.name,
+        "description": s.description,
+        "price_per_hour": float(s.price_per_hour or 0),
+        "category": s.category,
+        "icon": s.icon,
+        "color": s.color,
+        "active": s.active,
+        "created_at": str(s.created_at) if s.created_at else None
+    } for s in services]
 
+@router.post("/services/")
+def create_service(payload: dict, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    service = Service(
+        name=payload.get("name"),
+        description=payload.get("description"),
+        price_per_hour=Decimal(str(payload.get("price_per_hour", 0))),
+        category=payload.get("category"),
+        icon=payload.get("icon", "construction_rounded"),
+        color=payload.get("color", "#4FC3F7"),
+        active=payload.get("active", True)
+    )
+    db.add(service)
+    db.commit()
+    db.refresh(service)
+    return {"id": service.id, "message": "Service créé"}
+
+@router.put("/services/{service_id}")
+def update_service(service_id: int, payload: dict, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    service = db.query(Service).filter(Service.id == service_id).first()
+    if not service:
+        raise HTTPException(404, "Service introuvable")
+    
+    for key, value in payload.items():
+        if key == "price_per_hour" and value is not None:
+            setattr(service, key, Decimal(str(value)))
+        elif hasattr(service, key):
+            setattr(service, key, value)
+    
+    db.commit()
+    return {"message": "Service mis à jour"}
+
+@router.delete("/services/{service_id}")
+def delete_service(service_id: int, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    service = db.query(Service).filter(Service.id == service_id).first()
+    if not service:
+        raise HTTPException(404, "Service introuvable")
+    db.delete(service)
+    db.commit()
+    return {"message": "Service supprimé"}
+
+# ─────────────────────────────────────────────────────────────
+# 13. GESTION DES PROFESSIONNELS
+# ─────────────────────────────────────────────────────────────
+@router.get("/professionals/all")
+def get_professionals(admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    pros = db.query(Professional).all()
+    return [{
+        "id": p.id,
+        "service_id": p.service_id,
+        "service_name": p.service.name if p.service else None,
+        "name": p.name,
+        "phone": p.phone,
+        "description": p.description,
+        "zone": p.zone,
+        "adresse": p.adresse,
+        "disponible": p.disponible,
+        "years_experience": p.years_experience,
+        "active": p.active,
+        "created_at": str(p.created_at) if p.created_at else None
+    } for p in pros]
+
+@router.post("/professionals/")
+def create_professional(payload: dict, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    pro = Professional(
+        service_id=payload.get("service_id"),
+        name=payload.get("name"),
+        phone=payload.get("phone"),
+        description=payload.get("description"),
+        zone=payload.get("zone"),
+        adresse=payload.get("adresse"),
+        disponible=payload.get("disponible", True),
+        years_experience=payload.get("years_experience", 0),
+        active=payload.get("active", True)
+    )
+    db.add(pro)
+    db.commit()
+    db.refresh(pro)
+    return {"id": pro.id, "message": "Professionnel créé"}
+
+@router.put("/professionals/{pro_id}")
+def update_professional(pro_id: int, payload: dict, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    pro = db.query(Professional).filter(Professional.id == pro_id).first()
+    if not pro:
+        raise HTTPException(404, "Professionnel introuvable")
+    
+    for key, value in payload.items():
+        if hasattr(pro, key):
+            setattr(pro, key, value)
+    
+    db.commit()
+    return {"message": "Professionnel mis à jour"}
+
+@router.delete("/professionals/{pro_id}")
+def delete_professional(pro_id: int, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    pro = db.query(Professional).filter(Professional.id == pro_id).first()
+    if not pro:
+        raise HTTPException(404, "Professionnel introuvable")
+    db.delete(pro)
+    db.commit()
+    return {"message": "Professionnel supprimé"}
+
+# ─────────────────────────────────────────────────────────────
+# 14. RÉSERVATIONS DE SERVICES
+# ─────────────────────────────────────────────────────────────
+@router.get("/services/reservations")
+def get_service_reservations(
+    status: Optional[str] = None,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    q = db.query(ServiceReservation)
+    if status:
+        q = q.filter(ServiceReservation.status == status)
+    reservations = q.order_by(desc(ServiceReservation.created_at)).all()
+    
+    return [{
+        "id": r.id,
+        "user_id": r.user_id,
+        "user": {
+            "name": r.user.name if r.user else None,
+            "phone": r.user.phone if r.user else None,
+            "email": r.user.email if r.user else None
+        } if r.user else None,
+        "service_id": r.service_id,
+        "service": {
+            "name": r.service.name if r.service else None
+        } if r.service else None,
+        "professional_id": r.professional_id,
+        "adresse": r.adresse,
+        "latitude": float(r.latitude) if r.latitude else None,
+        "longitude": float(r.longitude) if r.longitude else None,
+        "quartier": r.quartier,
+        "date": str(r.date) if r.date else None,
+        "creneau": r.creneau,
+        "duree_heures": r.duree_heures,
+        "description_probleme": r.description_probleme,
+        "photo_url": r.photo_url,
+        "urgence": r.urgence,
+        "mode_paiement": r.mode_paiement,
+        "status": r.status,
+        "montant_total": float(r.montant_total or 0),
+        "admin_notes": r.admin_notes,
+        "progression": r.progression,
+        "statut_progression": r.statut_progression,
+        "created_at": str(r.created_at) if r.created_at else None,
+        "updated_at": str(r.updated_at) if r.updated_at else None
+    } for r in reservations]
+
+@router.get("/services/reservations/{reservation_id}")
+def get_service_reservation_detail(
+    reservation_id: int,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    r = db.query(ServiceReservation).filter(ServiceReservation.id == reservation_id).first()
+    if not r:
+        raise HTTPException(404, "Réservation introuvable")
+    
+    return {
+        "id": r.id,
+        "user": {
+            "id": r.user.id if r.user else None,
+            "name": r.user.name if r.user else None,
+            "phone": r.user.phone if r.user else None,
+            "email": r.user.email if r.user else None
+        } if r.user else None,
+        "service": {
+            "id": r.service.id if r.service else None,
+            "name": r.service.name if r.service else None
+        } if r.service else None,
+        "adresse": r.adresse,
+        "latitude": float(r.latitude) if r.latitude else None,
+        "longitude": float(r.longitude) if r.longitude else None,
+        "quartier": r.quartier,
+        "date": str(r.date) if r.date else None,
+        "creneau": r.creneau,
+        "duree_heures": r.duree_heures,
+        "description_probleme": r.description_probleme,
+        "urgence": r.urgence,
+        "status": r.status,
+        "montant_total": float(r.montant_total or 0),
+        "admin_notes": r.admin_notes,
+        "created_at": str(r.created_at) if r.created_at else None
+    }
+
+@router.put("/services/reservations/{reservation_id}/status")
+def update_service_reservation_status(
+    reservation_id: int,
+    payload: dict,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    r = db.query(ServiceReservation).filter(ServiceReservation.id == reservation_id).first()
+    if not r:
+        raise HTTPException(404, "Réservation introuvable")
+    
+    r.status = payload.get("status", r.status)
+    if "admin_notes" in payload:
+        r.admin_notes = payload["admin_notes"]
+    
+    db.commit()
+    return {"message": "Statut mis à jour"}
+
+# ─────────────────────────────────────────────────────────────
+# 15. COMMANDES DÉTAILLÉES AVEC PHOTOS
+# ─────────────────────────────────────────────────────────────
+@router.get("/commandes/detail")
+def get_commandes_detail(admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    # Récupérer les commandes avec leurs articles et photos
+    commandes = db.query(Commande).order_by(desc(Commande.created_at)).limit(100).all()
+    
+    result = []
+    for cmd in commandes:
+        user = db.query(User).filter(User.id == cmd.user_id).first()
+        for item in cmd.items:
+            result.append({
+                "commande_id": cmd.id,
+                "commande_status": cmd.status,
+                "commande_date": str(cmd.created_at) if cmd.created_at else None,
+                "client_name": user.name if user else None,
+                "client_phone": user.phone if user else None,
+                "client_address": user.address if user else None,
+                "facture_total": float(cmd.facture.total) if cmd.facture else 0,
+                "article_id": item.id,
+                "designation": item.designation,
+                "quantity": item.quantity,
+                "price": float(item.price or 0),
+                "article_status": item.status,
+                "photo_avant": item.photo_avant,
+                "photo_apres": item.photo_apres,
+                "photo_avant_date": None,  # À ajouter si tu as ce champ
+                "photo_apres_date": None
+            })
+    
+    return result
+
+# ─────────────────────────────────────────────────────────────
+# 16. PARRAINAGE - LISTE DES PARRAINAGES
+# ─────────────────────────────────────────────────────────────
+@router.get("/parrainage/referrals")
+def get_referrals(admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    referrals = db.query(Referral).all()
+    return [{
+        "id": r.id,
+        "sponsor_id": r.sponsor_id,
+        "referral_code": r.referral_code,
+        "referred_id": r.referred_id,
+        "rewarded": r.rewarded,
+        "reward_amount": float(r.reward_amount or 0),
+        "created_at": str(r.created_at) if r.created_at else None
+    } for r in referrals]
+
+@router.post("/parrainage/referrals/{referral_id}/reward")
+def reward_referral(
+    referral_id: int,
+    payload: dict,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    referral = db.query(Referral).filter(Referral.id == referral_id).first()
+    if not referral:
+        raise HTTPException(404, "Parrainage introuvable")
+    
+    if referral.rewarded:
+        raise HTTPException(400, "Déjà récompensé")
+    
+    amount = payload.get("amount", referral.reward_amount or 1000)
+    
+    # Créditer le sponsor
+    wallet = db.query(Wallet).filter(Wallet.user_id == referral.sponsor_id).first()
+    if not wallet:
+        wallet = Wallet(user_id=referral.sponsor_id, balance=0)
+        db.add(wallet)
+        db.flush()
+    
+    wallet.balance = (wallet.balance or Decimal("0")) + Decimal(str(amount))
+    
+    transaction = TransactionWallet(
+        wallet_id=wallet.id,
+        type="credit_parrainage",
+        amount=Decimal(str(amount)),
+        note=f"Récompense parrainage #{referral_id}"
+    )
+    db.add(transaction)
+    
+    referral.rewarded = True
+    referral.reward_amount = Decimal(str(amount))
+    
+    db.commit()
+    return {"message": "Récompense validée", "amount": amount}
 # ─────────────────────────────────────────────────────────────
 # HELPER AUDIT
 # ─────────────────────────────────────────────────────────────
