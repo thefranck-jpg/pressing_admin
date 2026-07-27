@@ -198,7 +198,6 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
 
   try {
     // Le backend expose la route de connexion admin sur /admin/login
-    // (voir admin_backend.py : router = APIRouter(prefix="/admin") + @router.post("/login"))
     let res = await fetch(`${apiUrl}/admin/login`, {
       method: "POST",
       headers: {"Content-Type": "application/json"},
@@ -217,8 +216,7 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || "Identifiants incorrects");
 
-    // Le backend renvoie { token, user } — on garde aussi data.access_token
-    // et data.admin en compatibilité si jamais le format change un jour.
+    // Le backend renvoie { token, user }
     const token = data.token || data.access_token;
     const user  = data.user || data.admin || {};
 
@@ -226,9 +224,15 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
       throw new Error("Ce compte n'a pas les droits administrateur.");
     }
 
+    // Stocker le token en localStorage ET en cookie pour la protection
     localStorage.setItem("admin_token", token);
     localStorage.setItem("admin_user",  JSON.stringify(user));
-    window.location.href = "dashboard.html";
+    
+    // Stocker dans un cookie pour que le serveur puisse le lire
+    document.cookie = `admin_token=${token}; path=/; max-age=604800; SameSite=Lax; Secure`;
+    
+    // ⭐ REDIRECTION VERS /dashboard (sans .html)
+    window.location.href = "/dashboard";
 
   } catch (ex) {
     err.textContent = ex.message.includes("Failed to fetch") || ex.message.includes("NetworkError")
@@ -241,6 +245,24 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     btn.textContent = "Se connecter au dashboard";
   }
 });
+
+// ─── Vérification automatique à l'arrivée ──────────────
+// Si l'utilisateur est déjà connecté, rediriger vers /dashboard
+(function() {
+  const token = localStorage.getItem("admin_token");
+  if (token) {
+    // Vérifier que le token est valide avec une requête légère
+    fetch('/admin/verify', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    .then(res => {
+      if (res.ok) {
+        window.location.href = "/dashboard";
+      }
+    })
+    .catch(() => {});
+  }
+})();
 </script>
 </body>
 </html>
